@@ -47,7 +47,7 @@
 void count_kind_pair (int hand[], int val[]);
 void count_number_pair (int hand[], int val[]);
 void count_sequence_pair (int hand[], int val[]);
-void set_value (int val[], int num[], int sut[], int seq[], int numVal, int sutVal, int seqVal);
+void set_value (int val[], int num[], int sut[], int seq[]);
 int min (int arr[], int n);
 
 //====================================================================
@@ -100,7 +100,7 @@ int strategy (const int hd[], const int fd[], int cg, int tk, const int ud[], in
   count_sequence_pair(hand, seq);
 
   // set value
-  set_value(val, num, sut, seq, 4, 3, 10);
+  set_value(val, num, sut, seq);
 
   // return minimum value card
   return min(val, HNUM);
@@ -161,8 +161,10 @@ void count_sequence_pair (int hand[], int seq[]) {
 }
 
 
-void set_value (int val[], int num[], int sut[], int seq[], int numVal, int sutVal, int seqVal) {
-  int numVal, sutVal, seqVal;
+void set_value (int val[], int num[], int sut[], int seq[]) {
+  int numVal;
+  int sutVal;
+  int seqVal = 5;
   int i;
 
   for ( i = 0; i < HNUM; i++ ) {
