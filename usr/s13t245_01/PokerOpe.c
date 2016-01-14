@@ -44,11 +44,11 @@
 //  関数宣言
 //--------------------------------------------------------------------
 
-void check_kind_pair (int hand[], int val[], int kindVal);
-void check_number_pair (int hand[], int val[], int numVal);
-void check_sequence_pair (int hand[], int val[], int seqVal);
-int min(int arr[], int n);
-
+void count_kind_pair (int hand[], int val[]);
+void count_number_pair (int hand[], int val[]);
+void count_sequence_pair (int hand[], int val[]);
+void set_value (int val[], int num[], int sut[], int seq[], int numVal, int sutVal, int seqVal);
+int min (int arr[], int n);
 
 //====================================================================
 //  戦略
@@ -69,13 +69,14 @@ us : 捨札数
 
 --------------------------------------------------------------------*/
 
-int strategy(const int hd[], const int fd[], int cg, int tk, const int ud[], int us)
+int strategy (const int hd[], const int fd[], int cg, int tk, const int ud[], int us)
 {
   int point;
   int hand[5];
+  int num[5] = {0};
+  int sut[5] = {0};
+  int seq[5] = {0};
   int val[5] = {0};
-  // int num[13] = {0};
-  // int sut[4] = {0};
   // int seqVal = 6;
   // int ret_card;
   // int i, j;
@@ -89,14 +90,17 @@ int strategy(const int hd[], const int fd[], int cg, int tk, const int ud[], int
   // for ( k = 0; k < HNUM; k++ ) { t = hand[k] % 13; num[t]++; }    // 数位
   // for ( k = 0; k < HNUM; k++ ) { t = hand[k] / 13; sut[t]++; }    // 種類
 
-  // same kind pair
-  check_kind_pair(hand, val, 3);
-
   // same number pair
-  check_number_pair(hand, val, 4);
+  count_number_pair(hand, num);
+
+  // same kind pair
+  count_kind_pair(hand, sut);
 
   // sequential number
-  check_sequence_pair(hand, val, 4);
+  count_sequence_pair(hand, seq);
+
+  // set value
+  set_value(val, num, sut, seq, 4, 3, 10);
 
   // return minimum value card
   return min(val, HNUM);
@@ -117,45 +121,70 @@ int strategy(const int hd[], const int fd[], int cg, int tk, const int ud[], int
 //   return -1;
 // }
 
-void check_kind_pair (int hand[], int val[], int kindVal) {
-  int i, j;
 
-  for ( i = 0; i < HNUM; i++ ) {
-    for ( j = i+1; j < HNUM; j++ ) {
-      if ( hand[i] / 13 == hand[j] / 13 ) {
-        val[i] += kindVal; val[j] += kindVal;
-      }
-    }
-  }
-}
-
-
-void check_number_pair (int hand[], int val[], int numVal) {
+void count_number_pair (int hand[], int num[]) {
   int i, j;
 
   for ( i = 0; i < HNUM; i++ ) {
     for ( j = i+1; j < HNUM; j++ ) {
       if ( hand[i] % 13 == hand[j] % 13 ) {
-        val[i] += numVal; val[j] += numVal;
+        num[i]++; num[j]++;
       }
     }
   }
 }
 
 
-void check_sequence_pair (int hand[], int val[], int seqVal) {
+void count_kind_pair (int hand[], int sut[]) {
   int i, j;
 
   for ( i = 0; i < HNUM; i++ ) {
     for ( j = i+1; j < HNUM; j++ ) {
-      if ( ahead(val[i]) == val[j] ) { val[i] += seqVal; val[j] += seqVal; }
-        else if ( rear(val[i]) == val[j] ) { val[i] += seqVal; val[j] += seqVal; }
+      if ( hand[i] / 13 == hand[j] / 13 ) {
+        sut[i]++; sut[j]++;
+      }
     }
   }
 }
 
 
-int min(int arr[], int n) {
+void count_sequence_pair (int hand[], int seq[]) {
+  int i, j;
+
+  for ( i = 0; i < HNUM; i++ ) {
+    for ( j = i+1; j < HNUM; j++ ) {
+      if ( ahead(hand[i]) == hand[j] || rear(hand[i]) == hand[j] ) {
+        seq[i]++; seq[j]++;
+      }
+    }
+  }
+}
+
+
+void set_value (int val[], int num[], int sut[], int seq[], int numVal, int sutVal, int seqVal) {
+  int numVal, sutVal, seqVal;
+  int i;
+
+  for ( i = 0; i < HNUM; i++ ) {
+    // number pair
+    switch ( num[i] ) {
+      case 3 : numVal = 3;  break;
+      default : numVal = 1;
+    }
+    val[i] += num[i] * numVal;
+    // kind pair
+    switch ( sut[i] ) {
+      case 3 : sutVal = 3;  break;
+      default : sutVal = 1;
+    }
+    val[i] += sut[i] * sutVal;
+    // sequence pair
+    if ( seq[i] >= 3 ) { val[i] += seq[i] * seqVal; }
+  }
+}
+
+
+int min (int arr[], int n) {
   int i;
   int min = 0;
 
