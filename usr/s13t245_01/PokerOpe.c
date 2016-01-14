@@ -162,9 +162,9 @@ void count_sequence_pair (int hand[], int seq[]) {
 
 
 void set_value (int val[], int num[], int sut[], int seq[]) {
-  int numVal;
-  int sutVal;
-  int seqVal = 5;
+  int numVal = 0;
+  int sutVal = 0;
+  int seqVal = 10;
   int i;
 
   for ( i = 0; i < HNUM; i++ ) {
@@ -176,12 +176,13 @@ void set_value (int val[], int num[], int sut[], int seq[]) {
     val[i] += num[i] * numVal;
     // kind pair
     switch ( sut[i] ) {
-      case 3 : sutVal = 3;  break;
+      case 3 : sutVal = 4;  break;
+      case 4 : sutVal = 6;  break;
       default : sutVal = 1;
     }
     val[i] += sut[i] * sutVal;
     // sequence pair
-    if ( seq[i] >= 3 ) { val[i] += seq[i] * seqVal; }
+    if ( seq[i] >= 4 ) { val[i] += seq[i] * seqVal; }
   }
 }
 
