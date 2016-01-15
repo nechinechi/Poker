@@ -36,19 +36,43 @@
 
 #include "Poker.h"
 
-
+/*
+    1 1 1 1
+    C D H S
+*/
+#define sutS 0
+#define sutH 1
+#define sutD 2
+#define sutC 3
+#define bitS 1
+#define bitH 2
+#define bitD 4
+#define bitC 8
 #define ahead(x) ((x%13 != 0) ? x-1 : x+12)
 #define rear(x) ((x%13 != 12) ? x+1 : x-12)
+
+typedef struct _Node {   // 手札カードのインデックスを格納
+  int index;
+  struct _Node *next;
+} Node;
+
+typedef struct {        // 手札カードの情報を保持
+  int num;
+  int sut;
+  Node *node;
+} State;
 
 //--------------------------------------------------------------------
 //  関数宣言
 //--------------------------------------------------------------------
 
-void count_kind_pair (int hand[], int val[]);
-void count_number_pair (int hand[], int val[]);
-void count_sequence_pair (int hand[], int val[]);
-void set_value (int val[], int num[], int sut[], int seq[]);
-int min (int arr[], int n);
+void get_state(int hand[], State state[]);
+void count_suite_pair(int hand[], int sut[]);
+void count_number_pair(int hand[], int num[]);
+void count_sequence_pair(int hand[], int seq[]);
+void set_value(int val[], int sut[], int num[], int seq[]);
+int max(int arr[], int n);
+int min(int arr[], int n);
 
 //====================================================================
 //  戦略
@@ -69,17 +93,15 @@ us : 捨札数
 
 --------------------------------------------------------------------*/
 
-int strategy (const int hd[], const int fd[], int cg, int tk, const int ud[], int us)
+int strategy(const int hd[], const int fd[], int cg, int tk, const int ud[], int us)
 {
-  int point;
-  int hand[5];
-  int num[5] = {0};
-  int sut[5] = {0};
-  int seq[5] = {0};
-  int val[5] = {0};
-  // int seqVal = 6;
-  // int ret_card;
-  // int i, j;
+  int point;           // 現在の手札の点数
+  int hand[5];         // 手札のコピー
+  State state[13] = {{0, 1, NULL}};    // 手札の状態
+  int sut[5] = {0};    // 種類の同じカードの数
+  int num[5] = {0};    // 数字の同じカードの数
+  int seq[5] = {0};    // 連続する順番の数
+  int val[5] = {0};    // カードの重み
   // int k;
   // int t;
 
@@ -87,20 +109,20 @@ int strategy (const int hd[], const int fd[], int cg, int tk, const int ud[], in
   point = poker_point(hand);
   if ( point >= P6 ) { return -1; }
 
-  // for ( k = 0; k < HNUM; k++ ) { t = hand[k] % 13; num[t]++; }    // 数位
   // for ( k = 0; k < HNUM; k++ ) { t = hand[k] / 13; sut[t]++; }    // 種類
+  // for ( k = 0; k < HNUM; k++ ) { t = hand[k] % 13; num[t]++; }    // 数位
+
+  // same kind pair
+  count_suite_pair(hand, sut);
 
   // same number pair
   count_number_pair(hand, num);
-
-  // same kind pair
-  count_kind_pair(hand, sut);
 
   // sequential number
   count_sequence_pair(hand, seq);
 
   // set value
-  set_value(val, num, sut, seq);
+  set_value(val, sut, num, seq);
 
   // return minimum value card
   return min(val, HNUM);
@@ -111,31 +133,46 @@ int strategy (const int hd[], const int fd[], int cg, int tk, const int ud[], in
 //  補助関数
 //====================================================================
 
-// int check_pair(int num[]) {
-//   return 0;
-// }
 
-// int check_flash(int sut[]) {
-//   int i;
-//   for ( i = 0; i < 4; i++ ) { if ( sut[i] > 3 ) { return i; } }
-//   return -1;
-// }
-
-
-void count_number_pair (int hand[], int num[]) {
-  int i, j;
+void get_state(int hand[], State state[])
+{
+  int t;
+  Node new;
+  Node *node, *prev;
+  int i;
 
   for ( i = 0; i < HNUM; i++ ) {
-    for ( j = i+1; j < HNUM; j++ ) {
-      if ( hand[i] % 13 == hand[j] % 13 ) {
-        num[i]++; num[j]++;
+    t = hand[i] % 13;        // カードの数字を算出
+    state[t].num++;          // カードの数字の枚数
+    switch ( hand[i] / 13 ) {    // カードの種類を算出
+      case sutS : state[t].sut += bitS; break;
+      case sutH : state[t].sut += bitH; break;
+      case sutD : state[t].sut += bitD; break;
+      case sutC : state[t].sut += bitC; break;
+      default :
+    }
+
+    //---- 新たなノードを生成
+    new.index = i;     // インデックスを格納
+    new.next = NULL;   // 次のノードへのポインタを初期化
+
+    //---- ノードを連結
+    if ( state[i].node == NULL ) {
+      state[i].node = &new;     // ノードへのポインタを格納
+    } else {
+      node = state[i].node;             // 最初のノードへ遷移
+      while ( node->next != NULL ) {    // nodeのjj next 
+        // prev = node;
+        node = node->next;
       }
+      node->next = &new;        // ノードへのポインタを格納
     }
   }
 }
 
 
-void count_kind_pair (int hand[], int sut[]) {
+void count_suite_pair(int hand[], int sut[])
+{
   int i, j;
 
   for ( i = 0; i < HNUM; i++ ) {
@@ -148,7 +185,22 @@ void count_kind_pair (int hand[], int sut[]) {
 }
 
 
-void count_sequence_pair (int hand[], int seq[]) {
+void count_number_pair(int hand[], int num[])
+{
+  int i, j;
+
+  for ( i = 0; i < HNUM; i++ ) {
+    for ( j = i+1; j < HNUM; j++ ) {
+      if ( hand[i] % 13 == hand[j] % 13 ) {
+        num[i]++; num[j]++;
+      }
+    }
+  }
+}
+
+
+void count_sequence_pair(int hand[], int seq[])
+{
   int i, j;
 
   for ( i = 0; i < HNUM; i++ ) {
@@ -161,33 +213,50 @@ void count_sequence_pair (int hand[], int seq[]) {
 }
 
 
-void set_value (int val[], int num[], int sut[], int seq[]) {
-  int numVal = 0;
+void set_value(int val[], int sut[], int num[], int seq[])
+{
   int sutVal = 0;
-  int seqVal = 10;
+  int numVal = 0;
+  int seqVal = 32;
   int i;
 
   for ( i = 0; i < HNUM; i++ ) {
-    // number pair
-    switch ( num[i] ) {
-      case 3 : numVal = 3;  break;
-      default : numVal = 1;
-    }
-    val[i] += num[i] * numVal;
     // kind pair
     switch ( sut[i] ) {
-      case 3 : sutVal = 4;  break;
-      case 4 : sutVal = 6;  break;
-      default : sutVal = 1;
+      case 3 : sutVal = 4;  break;     // 3 kind pair
+      case 4 : sutVal = 24;  break;    // 4 kind pair
+      default : sutVal = 0;
     }
-    val[i] += sut[i] * sutVal;
+    val[i] += sutVal;
+
+    // number pair
+    switch ( num[i] ) {
+      case 3 : numVal = 64;  break;    // 3 number pair
+      default : numVal = 5;
+    }
+    val[i] += numVal;
+
     // sequence pair
-    if ( seq[i] >= 4 ) { val[i] += seq[i] * seqVal; }
+    if ( seq[i] >= 4 ) { val[i] += seqVal; }
   }
 }
 
 
-int min (int arr[], int n) {
+int max(int arr[], int n)
+{
+  int i;
+  int max = 0;
+
+  for ( i = 1; i < n; i++ ) {
+    if ( arr[i] > arr[max] ) { max = i; }
+  }
+
+  return max;
+}
+
+
+int min(int arr[], int n)
+{
   int i;
   int min = 0;
 
