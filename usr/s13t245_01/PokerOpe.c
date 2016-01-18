@@ -68,11 +68,10 @@ typedef struct {        // 手札カードの情報を保持
 
 void get_state(int hand[], State state[]);
 void count_suite_pair(int hand[], int sut[]);
-void count_number_pair(int hand[], int num[]);
-void count_sequence_pair(int hand[], int seq[]);
-void set_value(int val[], int sut[], int num[], int seq[]);
-int max(int arr[], int n);
 int min(int arr[], int n);
+void plus_value(Node *node, int val[], int t);
+void set_value_4number(State state[], int val[]);
+void set_value_4straight(State state[], int val[]);
 
 //====================================================================
 //  戦略
@@ -99,30 +98,38 @@ int strategy(const int hd[], const int fd[], int cg, int tk, const int ud[], int
   int hand[5];         // 手札のコピー
   State state[13] = {{0, 1, NULL}};    // 手札の状態
   int sut[5] = {0};    // 種類の同じカードの数
-  int num[5] = {0};    // 数字の同じカードの数
-  int seq[5] = {0};    // 連続する順番の数
   int val[5] = {0};    // カードの重み
-  // int k;
-  // int t;
+  int sutVal;
+  int i;
 
   arr_copy(hand, hd, HNUM);
   point = poker_point(hand);
   if ( point >= P6 ) { return -1; }
 
-  // for ( k = 0; k < HNUM; k++ ) { t = hand[k] / 13; sut[t]++; }    // 種類
-  // for ( k = 0; k < HNUM; k++ ) { t = hand[k] % 13; num[t]++; }    // 数位
+  get_state(hand, state);
 
   // same kind pair
   count_suite_pair(hand, sut);
+  for ( i = 0; i < HNUM; i++ ) {
+    // kind pair
+    switch ( sut[i] ) {
+      case 3 : sutVal = 4;  break;     // 3 kind pair
+      case 4 : sutVal = 24;  break;    // 4 kind pair
+      default : sutVal = 0;
+    }
+    val[i] += sutVal;
+  }
 
   // same number pair
-  count_number_pair(hand, num);
+  set_value_4number(state, val);
 
+  // set value sequential
+  set_value_4straight(state, val);
+
+/*
   // sequential number
   count_sequence_pair(hand, seq);
-
-  // set value
-  set_value(val, sut, num, seq);
+*/
 
   // return minimum value card
   return min(val, HNUM);
@@ -149,7 +156,6 @@ void get_state(int hand[], State state[])
       case sutH : state[t].sut += bitH; break;
       case sutD : state[t].sut += bitD; break;
       case sutC : state[t].sut += bitC; break;
-      default :
     }
 
     //---- 新たなノードを生成
@@ -161,7 +167,7 @@ void get_state(int hand[], State state[])
       state[i].node = &new;     // ノードへのポインタを格納
     } else {
       node = state[i].node;             // 最初のノードへ遷移
-      while ( node->next != NULL ) {    // nodeのjj next 
+      while ( node->next != NULL ) {    // 
         // prev = node;
         node = node->next;
       }
@@ -185,73 +191,49 @@ void count_suite_pair(int hand[], int sut[])
 }
 
 
-void count_number_pair(int hand[], int num[])
+void plus_value(Node *node, int val[], int t)
 {
+  while ( node != NULL ) {
+    val[node->index] += t;
+    node = node->next;
+  }
+}
+
+
+void set_value_4number(State state[], int val[])
+{
+  Node *node;
+  int i;
+
+  for ( i = 0; i < 13; i++ ) {
+    node = state[i].node;
+    switch ( state[i].num ) {
+      case 3 : plus_value(node, val, 3); break;
+      case 4 : plus_value(node, val, 5); break;
+    }
+  }
+}
+
+
+void set_value_4straight(State state[], int val[])
+{
+  Node *node;
+  int start, end;
   int i, j;
 
-  for ( i = 0; i < HNUM; i++ ) {
-    for ( j = i+1; j < HNUM; j++ ) {
-      if ( hand[i] % 13 == hand[j] % 13 ) {
-        num[i]++; num[j]++;
+  for ( i = 0; i < 13; i++ ) {
+    if ( state[i].num ) {
+      if ( start ) { end++; }
+        else { end = start = i; }
+    } else {
+      if ( end-start+1 > 4 ) {
+        for ( j = start; j <= end; j++ ) {
+          node = state[j].node;
+          plus_value(node, val, 15);
+        }
       }
     }
   }
-}
-
-
-void count_sequence_pair(int hand[], int seq[])
-{
-  int i, j;
-
-  for ( i = 0; i < HNUM; i++ ) {
-    for ( j = i+1; j < HNUM; j++ ) {
-      if ( ahead(hand[i]) == hand[j] || rear(hand[i]) == hand[j] ) {
-        seq[i]++; seq[j]++;
-      }
-    }
-  }
-}
-
-
-void set_value(int val[], int sut[], int num[], int seq[])
-{
-  int sutVal = 0;
-  int numVal = 0;
-  int seqVal = 32;
-  int i;
-
-  for ( i = 0; i < HNUM; i++ ) {
-    // kind pair
-    switch ( sut[i] ) {
-      case 3 : sutVal = 4;  break;     // 3 kind pair
-      case 4 : sutVal = 24;  break;    // 4 kind pair
-      default : sutVal = 0;
-    }
-    val[i] += sutVal;
-
-    // number pair
-    switch ( num[i] ) {
-      case 3 : numVal = 64;  break;    // 3 number pair
-      default : numVal = 5;
-    }
-    val[i] += numVal;
-
-    // sequence pair
-    if ( seq[i] >= 4 ) { val[i] += seqVal; }
-  }
-}
-
-
-int max(int arr[], int n)
-{
-  int i;
-  int max = 0;
-
-  for ( i = 1; i < n; i++ ) {
-    if ( arr[i] > arr[max] ) { max = i; }
-  }
-
-  return max;
 }
 
 
